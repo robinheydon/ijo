@@ -52,12 +52,26 @@ void draw_frame_counter (void)
         }
         sum /= MAX_FRAMES;
 
+        int digits = log10 (frame_counter) + 1;
+
+        int x = 4;
+
         snprintf (buffer, sizeof (buffer), "%ld", frame_counter);
-        DrawTextEx (main_font, buffer, (Vector2) {4, 4}, 30, 0, (Color) {0, 0, 0, 255});
-        snprintf (buffer, sizeof (buffer), "%7.1f ms", sum * 1000);
-        DrawTextEx (main_font, buffer, (Vector2) {34, 4}, 30, 0, (Color) {0, 0, 0, 255});
+        DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
+        snprintf (buffer, sizeof (buffer), "%.*s ", digits, "88888888888888888888888888888");
+        // DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
+        Vector2 ext = MeasureTextEx (main_font, buffer, 30, 0);
+        x += ext.x;
+
+        snprintf (buffer, sizeof (buffer), "%4.1f ms", sum * 1000);
+        DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
+        // DrawTextEx (main_font, "888.8 ms ", (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
+        ext = MeasureTextEx (main_font, "888.8 ms", 30, 0);
+        x += ext.x;
+
         snprintf (buffer, sizeof (buffer), "%.1f Hz", 1 / sum);
-        DrawTextEx (main_font, buffer, (Vector2) {174, 4}, 30, 0, (Color) {0, 0, 0, 255});
+        DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
+        // DrawTextEx (main_font, "888.8 Hz ", (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
     }
 }
 
