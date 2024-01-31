@@ -15,11 +15,13 @@ uint32_t frame_index = 0;
 float frame_delta_times[MAX_FRAMES] = {0};
 bool frames_valid = false;
 
+ECS_COMPONENT_DECLARE (DebugFPS);
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void fps_system (ecs_iter_t *it)
+void update_fps_system (ecs_iter_t *it)
 {
     frame_counter += 1;
     float dt = it->delta_time;
@@ -31,19 +33,19 @@ void fps_system (ecs_iter_t *it)
         frame_index = 0;
         frames_valid = true;
     }
-
-    printf ("fps system %f %f\n", dt, 1/dt);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void draw_frame_counter (void)
+void draw_fps_system (ecs_iter_t *it)
 {
     char buffer[100];
 
-    if (frames_valid)
+    const DebugFPS *debug_fps = ecs_singleton_get (world, DebugFPS);
+
+    if ((debug_fps->flag) && (frames_valid))
     {
         float sum = 0;
         for (int i = 0; i < MAX_FRAMES; i ++)
@@ -59,20 +61,41 @@ void draw_frame_counter (void)
         snprintf (buffer, sizeof (buffer), "%ld", frame_counter);
         DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
         snprintf (buffer, sizeof (buffer), "%.*s ", digits, "88888888888888888888888888888");
-        // DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
         Vector2 ext = MeasureTextEx (main_font, buffer, 30, 0);
         x += ext.x;
 
-        snprintf (buffer, sizeof (buffer), "%4.1f ms", sum * 1000);
+        snprintf (buffer, sizeof (buffer), "%5.1f ms", sum * 1000);
         DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
-        // DrawTextEx (main_font, "888.8 ms ", (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
-        ext = MeasureTextEx (main_font, "888.8 ms", 30, 0);
+        ext = MeasureTextEx (main_font, "888.8 ms ", 30, 0);
         x += ext.x;
 
         snprintf (buffer, sizeof (buffer), "%.1f Hz", 1 / sum);
         DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
-        // DrawTextEx (main_font, "888.8 Hz ", (Vector2) {x, 4}, 30, 0, (Color) {255, 0, 255, 255});
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void init_fps_counter (void)
+{
+    ECS_SYSTEM (world, update_fps_system, PhaseUpdate, );
+    ECS_SYSTEM (world, draw_fps_system, PhaseDrawDebug, );
+
+    ECS_COMPONENT_DEFINE (world, DebugFPS);
+
+    ecs_singleton_set (world, DebugFPS, { true });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void toggle_fps_counter (void)
+{
+    DebugFPS *debug_fps = ecs_singleton_get_mut (world, DebugFPS);
+    debug_fps->flag = !debug_fps->flag;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
