@@ -15,6 +15,17 @@ ecs_query_t *tree_query = NULL;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+typedef struct TreeCensus
+{
+    uint32_t count;
+} TreeCensus;
+
+ECS_COMPONENT_DECLARE (TreeCensus);
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 ecs_entity_t mk_tree (float x, float y)
 {
     ecs_entity_t e = ecs_new_id (world);
@@ -70,7 +81,7 @@ void tree_census_system (ecs_iter_t *ignored_it)
         total_trees += it.count;
     }
 
-    printf ("Trees: %d\n", total_trees);
+    ecs_singleton_set (world, TreeCensus, {.count = total_trees});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +130,7 @@ void tree_reproduction_system (ecs_iter_t *it)
 
             const Position *p = ecs_get (it->world, it->entities[i], Position);
 
-            if ((p->x + dx < 100) || (p->x + dx > 1180) || (p->y + dy < 100) || (p->y + dy > 700))
+            if ((p->x + dx < 0) || (p->x + dx > 10000) || (p->y + dy < 0) || (p->y + dy > 10000))
             {
             }
             else if (!is_under_a_tree (p->x + dx, p->y + dy))
@@ -160,15 +171,31 @@ void draw_trees_system (ecs_iter_t *it)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+void debug_trees_system (ecs_iter_t *it)
+{
+    char buffer[100];
+
+    const TreeCensus *tree_census = ecs_singleton_get (world, TreeCensus);
+
+    snprintf (buffer, sizeof (buffer), "%d trees", tree_census->count);
+    DrawTextEx (main_font, buffer, (Vector2) {4, 64}, 30, 0, (Color) {0, 0, 0, 255});
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 void init_trees (void)
 {
     ECS_COMPONENT_DEFINE (world, Tree);
+    ECS_COMPONENT_DEFINE (world, TreeCensus);
 
     ECS_SYSTEM (world, update_trees_system, PhaseUpdate, Tree);
     ECS_SYSTEM (world, tree_reproduction_system, PhaseUpdate, Tree);
     ECS_SYSTEM (world, tree_census_system, PhaseUpdate, Tree);
 
     ECS_SYSTEM (world, draw_trees_system, PhaseDraw2D, Position, Tree);
+    ECS_SYSTEM (world, debug_trees_system, PhaseDrawDebug, TreeCensus);
 
     tree_position_query = ecs_query (world, {
         .filter.terms = {
@@ -182,6 +209,8 @@ void init_trees (void)
             { ecs_id (Tree) },
         }
     });
+
+    ecs_singleton_set (world, TreeCensus, {.count = 0});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

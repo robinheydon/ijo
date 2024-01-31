@@ -236,7 +236,13 @@ void debug_sim_time_system (ecs_iter_t *it)
 {
     char buffer[100];
 
-    snprintf (buffer, sizeof (buffer), "%5.1f (x%0.3f)", sim_time, sim_speed);
+    uint64_t int_sim_time = sim_time;
+    uint64_t sec = int_sim_time % 60; int_sim_time /= 60;
+    uint64_t min = int_sim_time % 60; int_sim_time /= 60;
+    uint64_t hr = int_sim_time % 24; int_sim_time /= 24;
+    uint64_t day = int_sim_time % 7; int_sim_time /= 7;
+
+    snprintf (buffer, sizeof (buffer), "%ld:%02ld:%02ld:%02ld (x%0.3f)", day, hr, min, sec, sim_speed);
     DrawTextEx (main_font, buffer, (Vector2) {4, 34}, 30, 0, (Color) {0, 0, 0, 255});
 }
 
@@ -302,8 +308,8 @@ void set_speed_one (void) { sim_speed = 1; }
 void set_speed_two (void) { sim_speed = 2; }
 void set_speed_three (void) { sim_speed = 4; }
 void set_speed_four (void) { sim_speed = 8; }
-void set_speed_five (void) { sim_speed = 16; }
-void set_speed_six (void) { sim_speed = 32; }
+void set_speed_five (void) { sim_speed = 15; }
+void set_speed_six (void) { sim_speed = 60; }
 void set_speed_seven (void) { sim_speed = 0.125; }
 void set_speed_eight (void) { sim_speed = 0.25; }
 void set_speed_nine (void) { sim_speed = 0.5; }
