@@ -7,8 +7,8 @@ RELEASE_OBJS = $(patsubst src/%.c, _build/release/%.o, $(SRCS))
 
 ZOBJS = $(patsubst src/%.zig, _build/%.o, $(ZSRCS))
 
-DEBUG_EXE = city_debug
-RELEASE_EXE = city
+DEBUG_EXE = _build/city_debug
+RELEASE_EXE = _build/city
 
 CFLAGS += -g
 CFLAGS += -Wall

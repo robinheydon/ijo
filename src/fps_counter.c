@@ -56,7 +56,7 @@ void draw_fps_system (ecs_iter_t *it)
     {
         double now = GetTime ();
 
-        if (now - last_update >= 0.5)
+        if (now - last_update >= 0.2)
         {
             average_delta_time = 0;
             for (int i = 0; i < MAX_FRAMES; i ++)
@@ -90,7 +90,7 @@ void init_fps_counter (void)
 
     ECS_COMPONENT_DEFINE (world, DebugFPS);
 
-    ecs_singleton_set (world, DebugFPS, { false });
+    ecs_singleton_set (world, DebugFPS, { true });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

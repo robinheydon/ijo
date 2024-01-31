@@ -8,10 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef struct Tree
-{
-    float growth;
-} Tree;
+const float growth_rate = 0.1;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,13 +20,30 @@ void update_trees_system (ecs_iter_t *it)
     Tree *t = ecs_field(it, Tree, 1);
 
     for (int i = 0; i < it->count; i ++) {
-        t[i].growth += dt;
+        t[i].growth += growth_rate * dt;
         if (t[i].growth > 1)
         {
             t[i].growth = 1;
         }
+    }
+}
 
-        printf ("%lu %f\n", it->entities[i], t[i].growth);
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void draw_trees_system (ecs_iter_t *it)
+{
+    const Position *p = ecs_field(it, Position, 1);
+    const Tree *t = ecs_field(it, Tree, 2);
+
+    for (int i = 0; i < it->count; i ++) {
+        float x = p[i].x;
+        float y = p[i].y;
+        float g = t[i].growth;
+
+        DrawCircleLines (x, y, g * 30, BLACK);
+        DrawCircleV ((Vector2){x, y}, g * 30, (Color){0, 255, 0, 255});
     }
 }
 
@@ -61,9 +75,11 @@ void init_trees (void)
         .query.filter.terms = {
             { ecs_id (Tree) },
         },
-        .interval = 10.0,
+        .interval = 1.0,
         .callback = update_trees_system,
     });
+
+    ECS_SYSTEM (world, draw_trees_system, PhaseDraw2D, Position, Tree);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

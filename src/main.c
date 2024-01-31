@@ -26,15 +26,20 @@ ecs_entity_t PhaseDrawDebug = 0;
 ecs_entity_t PhaseEnd2D = 0;
 ecs_entity_t PhaseEndDrawing = 0;
 
-ECS_COMPONENT_DECLARE (Position);
-ECS_COMPONENT_DECLARE (Velocity);
-ECS_COMPONENT_DECLARE (Tree);
-
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 Font main_font;
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void toggle_fullscreen (void)
+{
+    ToggleFullscreen ();
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +92,12 @@ void process_inputs (ecs_iter_t *it)
                 toggle_fps_counter ();
                 break;
             }
+            case KEY_F11:
+            {
+                toggle_fullscreen ();
+                break;
+            }
+
             default:
             {
                 printf ("Key %d\n", key);
@@ -110,18 +121,21 @@ void process_inputs (ecs_iter_t *it)
 
 void init_phases (void)
 {
-    ecs_entity_t* phases[] = {
-        &PhaseProcessInputs,
-        &PhaseUpdate,
-        &PhaseBeginDrawing,
-        &PhaseBegin3D,
-        &PhaseDraw3D,
-        &PhaseEnd3D,
-        &PhaseBegin2D,
-        &PhaseDraw2D,
-        &PhaseDrawDebug,
-        &PhaseEnd2D,
-        &PhaseEndDrawing,
+    struct {
+        const char *name;
+        ecs_entity_t *entity;
+    } phases[] = {
+        { "PhaseProcessInputs", &PhaseProcessInputs, },
+        { "PhaseUpdate", &PhaseUpdate, },
+        { "PhaseBeginDrawing", &PhaseBeginDrawing, },
+        { "PhaseBegin3D", &PhaseBegin3D, },
+        { "PhaseDraw3D", &PhaseDraw3D, },
+        { "PhaseEnd3D", &PhaseEnd3D, },
+        { "PhaseBegin2D", &PhaseBegin2D, },
+        { "PhaseDraw2D", &PhaseDraw2D, },
+        { "PhaseEnd2D", &PhaseEnd2D, },
+        { "PhaseDrawDebug", &PhaseDrawDebug, },
+        { "PhaseEndDrawing", &PhaseEndDrawing, },
     };
 
     ecs_entity_t last_phase = 0;
@@ -129,13 +143,18 @@ void init_phases (void)
     for (int i = 0; i < sizeof (phases) / sizeof (phases[0]); i ++)
     {
         ecs_entity_t phase = ecs_new_w_id (world, EcsPhase);
-        *phases[i] = phase;
+        ecs_set_name (world, phase, phases[i].name);
+        *phases[i].entity = phase;
 
         if (last_phase)
         {
-            ecs_add_pair (world, last_phase, EcsDependsOn, phase);
-            last_phase = phase;
+            ecs_add_pair (world, phase, EcsDependsOn, last_phase);
         }
+        else
+        {
+            ecs_add_pair (world, phase, EcsDependsOn, EcsOnUpdate);
+        }
+        last_phase = phase;
     }
 }
 
@@ -147,22 +166,23 @@ void init_world (void)
 {
     world = ecs_init ();
 
+    ecs_singleton_set (world, EcsRest, {0});
+    ECS_IMPORT (world, FlecsMonitor);
+
     init_phases ();
+    init_components ();
 
-    ECS_COMPONENT_DEFINE (world, Position);
-    ECS_COMPONENT_DEFINE (world, Velocity);
-
-    ECS_SYSTEM (world, process_inputs, PhaseProcessInputs, );
     ECS_SYSTEM (world, begin_drawing, PhaseBeginDrawing, );
     ECS_SYSTEM (world, end_drawing, PhaseEndDrawing, );
+    ECS_SYSTEM (world, process_inputs, PhaseProcessInputs, );
 
     init_fps_counter ();
     init_trees ();
 
-    mk_tree (0, 0);
-    mk_tree (10, 0);
-    mk_tree (20, 0);
-    mk_tree (30, 0);
+    mk_tree (30, 50);
+    mk_tree (90, 30);
+    mk_tree (140, 60);
+    mk_tree (190, 40);
 
     ECS_SYSTEM (world, move_system, PhaseUpdate, Position, Velocity);
 }
@@ -210,6 +230,17 @@ int main (int argc, char **argv)
 
     while (!WindowShouldClose ())
     {
+        if (IsWindowFocused ())
+        {
+            SetWindowState (FLAG_VSYNC_HINT);
+            SetTargetFPS (0);
+        }
+        else
+        {
+            ClearWindowState (FLAG_VSYNC_HINT);
+            SetTargetFPS (30);
+        }
+
         ecs_progress (world, 0);
     }
 
