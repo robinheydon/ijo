@@ -42,6 +42,9 @@ RAYLIB_OBJS += _build/raylib/utils.o
 RAYLIB_CFLAGS += -DPLATFORM_DESKTOP
 RAYLIB_CFLAGS += -O2
 
+debug : $(DEBUG_EXE)
+release : $(RELEASE_EXE)
+
 run : $(DEBUG_EXE)
 	./$(DEBUG_EXE)
 
@@ -89,4 +92,4 @@ clean :
 
 .SUFFIXES :
 
-MAKEFLAGS += --no-builtin-rules -j 4
+MAKEFLAGS += --no-builtin-rules
