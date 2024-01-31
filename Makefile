@@ -2,10 +2,13 @@ SRCS = $(wildcard src/*.c)
 DEPS = $(wildcard src/*.h)
 ZSRCS = $(wildcard src/*.zig)
 
-OBJS = $(patsubst src/%.c, _build/%.o, $(SRCS))
+DEBUG_OBJS = $(patsubst src/%.c, _build/debug/%.o, $(SRCS))
+RELEASE_OBJS = $(patsubst src/%.c, _build/release/%.o, $(SRCS))
+
 ZOBJS = $(patsubst src/%.zig, _build/%.o, $(ZSRCS))
 
-EXE = city
+DEBUG_EXE = city_debug
+RELEASE_EXE = city
 
 CFLAGS += -g
 CFLAGS += -Wall
@@ -15,11 +18,17 @@ CFLAGS += -I src
 CFLAGS += -I libs/flecs
 CFLAGS += -I libs/raylib/src
 
+DEBUG_CFLAGS += $(CFLAGS)
+DEBUG_CFLAGS += -g
+
+RELEASE_CFLAGS += $(CFLAGS)
+RELEASE_CFLAGS += -O2
+
 ZIGFLAGS +=
 
 FLECS_OBJS += _build/flecs/flecs.o
 
-FLECS_CFLAGS +=
+FLECS_CFLAGS += -O2
 
 RAYLIB_OBJS += _build/raylib/raudio.o
 RAYLIB_OBJS += _build/raylib/rcore.o
@@ -31,15 +40,25 @@ RAYLIB_OBJS += _build/raylib/rtextures.o
 RAYLIB_OBJS += _build/raylib/utils.o
 
 RAYLIB_CFLAGS += -DPLATFORM_DESKTOP
+RAYLIB_CFLAGS += -O2
 
-run : $(EXE)
-	./$(EXE)
+run : $(DEBUG_EXE)
+	./$(DEBUG_EXE)
 
-$(EXE) : $(OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
-	zig cc -o $(EXE) $(OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
+run_release : $(RELEASE_EXE)
+	./$(RELEASE_EXE)
 
-_build/%.o : src/%.c $(DEPS) Makefile | _build
-	zig cc -c -o $@ $< $(CFLAGS)
+$(DEBUG_EXE) : $(DEBUG_OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
+	zig cc -o $@ $(DEBUG_OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
+
+$(RELEASE_EXE) : $(RELEASE_OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
+	zig cc -o $@ $(RELEASE_OBJS) $(ZOBJS) $(FLECS_OBJS) $(RAYLIB_OBJS)
+
+_build/debug/%.o : src/%.c $(DEPS) Makefile | _build
+	zig cc -c -o $@ $< $(DEBUG_CFLAGS)
+
+_build/release/%.o : src/%.c $(DEPS) Makefile | _build
+	zig cc -c -o $@ $< $(RELEASE_CFLAGS)
 
 _build/%.o : src/%.zig Makefile | _build
 	zig build-obj -femit-bin=$@ $< $(ZIGFLAGS)
@@ -58,6 +77,8 @@ _build/raylib/glfw/%.o : libs/raylib/src/external/glfw/src/%.c Makefile | _build
 
 _build :
 	@-mkdir _build
+	@-mkdir _build/release
+	@-mkdir _build/debug
 	@-mkdir _build/flecs
 	@-mkdir _build/raylib
 	@-mkdir _build/raylib/glfw
@@ -67,4 +88,5 @@ clean :
 	rm -rf _build
 
 .SUFFIXES :
-MAKEFLAGS += --no-builtin-rules
+
+MAKEFLAGS += --no-builtin-rules -j 4
