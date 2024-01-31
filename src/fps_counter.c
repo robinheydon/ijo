@@ -12,8 +12,15 @@
 
 uint64_t frame_counter = 0;
 uint32_t frame_index = 0;
+double last_update = 0;
 float frame_delta_times[MAX_FRAMES] = {0};
+float average_delta_time = 0;
 bool frames_valid = false;
+
+typedef struct DebugFPS
+{
+    bool flag;
+} DebugFPS;
 
 ECS_COMPONENT_DECLARE (DebugFPS);
 
@@ -47,29 +54,27 @@ void draw_fps_system (ecs_iter_t *it)
 
     if ((debug_fps->flag) && (frames_valid))
     {
-        float sum = 0;
-        for (int i = 0; i < MAX_FRAMES; i ++)
-        {
-            sum += frame_delta_times[i];
-        }
-        sum /= MAX_FRAMES;
+        double now = GetTime ();
 
-        int digits = log10 (frame_counter) + 1;
+        if (now - last_update >= 0.5)
+        {
+            average_delta_time = 0;
+            for (int i = 0; i < MAX_FRAMES; i ++)
+            {
+                average_delta_time += frame_delta_times[i];
+            }
+            average_delta_time /= MAX_FRAMES;
+            last_update = now;
+        }
 
         int x = 4;
 
-        snprintf (buffer, sizeof (buffer), "%ld", frame_counter);
+        snprintf (buffer, sizeof (buffer), "%5.1f ms", average_delta_time * 1000);
         DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
-        snprintf (buffer, sizeof (buffer), "%.*s ", digits, "88888888888888888888888888888");
-        Vector2 ext = MeasureTextEx (main_font, buffer, 30, 0);
+        Vector2 ext = MeasureTextEx (main_font, "888.8 ms ", 30, 0);
         x += ext.x;
 
-        snprintf (buffer, sizeof (buffer), "%5.1f ms", sum * 1000);
-        DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
-        ext = MeasureTextEx (main_font, "888.8 ms ", 30, 0);
-        x += ext.x;
-
-        snprintf (buffer, sizeof (buffer), "%.1f Hz", 1 / sum);
+        snprintf (buffer, sizeof (buffer), "%.1f Hz", 1 / average_delta_time);
         DrawTextEx (main_font, buffer, (Vector2) {x, 4}, 30, 0, (Color) {0, 0, 0, 255});
     }
 }
@@ -85,7 +90,7 @@ void init_fps_counter (void)
 
     ECS_COMPONENT_DEFINE (world, DebugFPS);
 
-    ecs_singleton_set (world, DebugFPS, { true });
+    ecs_singleton_set (world, DebugFPS, { false });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

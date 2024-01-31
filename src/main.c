@@ -28,6 +28,7 @@ ecs_entity_t PhaseEndDrawing = 0;
 
 ECS_COMPONENT_DECLARE (Position);
 ECS_COMPONENT_DECLARE (Velocity);
+ECS_COMPONENT_DECLARE (Tree);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,6 +157,12 @@ void init_world (void)
     ECS_SYSTEM (world, end_drawing, PhaseEndDrawing, );
 
     init_fps_counter ();
+    init_trees ();
+
+    mk_tree (0, 0);
+    mk_tree (10, 0);
+    mk_tree (20, 0);
+    mk_tree (30, 0);
 
     ECS_SYSTEM (world, move_system, PhaseUpdate, Position, Velocity);
 }
