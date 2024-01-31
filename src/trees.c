@@ -8,7 +8,70 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-const float growth_rate = 0.1;
+ecs_query_t *tree_position_query = NULL;
+ecs_query_t *tree_query = NULL;
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+ecs_entity_t mk_tree (float x, float y)
+{
+    ecs_entity_t e = ecs_new_id (world);
+    ecs_set (world, e, Tree, {
+        .growth = 0.01,
+        .growth_rate = 0.2 + frand () * 0.3,
+        .dob = GetTime (),
+        .max_age = sim_time + 120 + frand () * 120,
+    });
+    ecs_set (world, e, Position, {.x = x, .y = y});
+    return e;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+bool is_under_a_tree (float x, float y)
+{
+    float r = 45 * 45;
+    ecs_iter_t it = ecs_query_iter (world, tree_position_query);
+    while (ecs_query_next (&it))
+    {
+        const Position *p = ecs_field (&it, Position, 1);
+
+        for (int i = 0; i < it.count; i ++)
+        {
+            float dx = p[i].x - x;
+            float dy = p[i].y - y;
+
+            float d = dx * dx + dy * dy;
+
+            if (d < r)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void tree_census_system (ecs_iter_t *ignored_it)
+{
+    uint32_t total_trees = 0;
+
+    ecs_iter_t it = ecs_query_iter (world, tree_query);
+    while (ecs_query_next (&it))
+    {
+        total_trees += it.count;
+    }
+
+    printf ("Trees: %d\n", total_trees);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -16,14 +79,53 @@ const float growth_rate = 0.1;
 
 void update_trees_system (ecs_iter_t *it)
 {
-    float dt = it->delta_system_time;
     Tree *t = ecs_field(it, Tree, 1);
 
     for (int i = 0; i < it->count; i ++) {
-        t[i].growth += growth_rate * dt;
+        t[i].growth += t[i].growth_rate * sim_delta_time;
         if (t[i].growth > 1)
         {
             t[i].growth = 1;
+        }
+        else if (t[i].growth < 0)
+        {
+            ecs_delete (world, it->entities[i]);
+        }
+
+        float age = sim_time - t[i].dob;
+        if (age > t[i].max_age)
+        {
+            t[i].growth_rate = -fabs (t[i].growth_rate);
+        }
+
+        // printf ("%lx %f %f %f %f\n", it->entities[i], t[i].growth, t[i].growth_rate, age, t[i].max_age);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void tree_reproduction_system (ecs_iter_t *it)
+{
+    Tree *t = ecs_field(it, Tree, 1);
+
+    for (int i = 0; i < it->count; i ++) {
+        if (t[i].growth == 1)
+        {
+            float a = frand () * M_PI * 2;
+            float dx = sin (a) * 200;
+            float dy = cos (a) * 200;
+
+            const Position *p = ecs_get (it->world, it->entities[i], Position);
+
+            if ((p->x + dx < 100) || (p->x + dx > 1180) || (p->y + dy < 100) || (p->y + dy > 700))
+            {
+            }
+            else if (!is_under_a_tree (p->x + dx, p->y + dy))
+            {
+                mk_tree (p->x + dx, p->y + dy);
+            }
         }
     }
 }
@@ -41,22 +143,17 @@ void draw_trees_system (ecs_iter_t *it)
         float x = p[i].x;
         float y = p[i].y;
         float g = t[i].growth;
+        g = sqrt (g);
 
-        DrawCircleLines (x, y, g * 30, BLACK);
-        DrawCircleV ((Vector2){x, y}, g * 30, (Color){0, 255, 0, 255});
+        if (t[i].growth_rate > 0)
+        {
+            DrawCircleV ((Vector2){x, y}, g * 30, (Color){0, 255, 0, 255});
+        }
+        else
+        {
+            DrawCircleV ((Vector2){x, y}, g * 30, (Color){192, 255, 128, 255});
+        }
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-ecs_entity_t mk_tree (float x, float y)
-{
-    ecs_entity_t e = ecs_new_id (world);
-    ecs_set (world, e, Tree, {.growth = 0.1});
-    ecs_set (world, e, Position, {.x = x, .y = y});
-    return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,19 +164,24 @@ void init_trees (void)
 {
     ECS_COMPONENT_DEFINE (world, Tree);
 
-    ecs_system (world, {
-        .entity = ecs_entity (world, {
-            .name = "update_trees_system",
-            .add = { ecs_dependson (PhaseUpdate) },
-        }),
-        .query.filter.terms = {
-            { ecs_id (Tree) },
-        },
-        .interval = 1.0,
-        .callback = update_trees_system,
-    });
+    ECS_SYSTEM (world, update_trees_system, PhaseUpdate, Tree);
+    ECS_SYSTEM (world, tree_reproduction_system, PhaseUpdate, Tree);
+    ECS_SYSTEM (world, tree_census_system, PhaseUpdate, Tree);
 
     ECS_SYSTEM (world, draw_trees_system, PhaseDraw2D, Position, Tree);
+
+    tree_position_query = ecs_query (world, {
+        .filter.terms = {
+            { ecs_id (Position) },
+            { ecs_id (Tree) },
+        }
+    });
+
+    tree_query = ecs_query (world, {
+        .filter.terms = {
+            { ecs_id (Tree) },
+        }
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

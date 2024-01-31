@@ -32,13 +32,24 @@ ecs_entity_t PhaseEndDrawing = 0;
 
 Font main_font;
 
+double sim_time = 0.0;
+double sim_delta_time = 0.0;
+double sim_speed = 1.0;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void toggle_fullscreen (void)
 {
-    ToggleFullscreen ();
+    if (IsWindowMaximized ())
+    {
+        ToggleBorderlessWindowed ();
+    }
+    else
+    {
+        ToggleBorderlessWindowed ();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -61,7 +72,7 @@ void move_system (ecs_iter_t *it)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void begin_drawing (ecs_iter_t *it)
+void begin_drawing_system (ecs_iter_t *it)
 {
     BeginDrawing ();
     ClearBackground ((Color) {255,255,255,255});
@@ -71,7 +82,7 @@ void begin_drawing (ecs_iter_t *it)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void end_drawing (ecs_iter_t *it)
+void end_drawing_system (ecs_iter_t *it)
 {
     EndDrawing ();
 }
@@ -80,27 +91,77 @@ void end_drawing (ecs_iter_t *it)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void process_inputs (ecs_iter_t *it)
+typedef struct KeyBinding {
+    KeyboardKey key;
+    Modifier mod;
+    void (*callback) (void);
+} KeyBinding;
+
+#define MAX_KEY_BINDINGS 1024
+
+int num_key_bindings = 0;
+
+KeyBinding key_bindings[MAX_KEY_BINDINGS] = {0};
+
+void set_key_binding (KeyboardKey key, Modifier mod, void (*callback) (void))
+{
+    for (int i = 0; i < num_key_bindings; i ++)
+    {
+        if ((key_bindings[i].key == key) && (key_bindings[i].mod == mod))
+        {
+            if (callback == NULL)
+            {
+                num_key_bindings -= 1;
+                key_bindings[i].key = key_bindings[num_key_bindings].key;
+                key_bindings[i].mod = key_bindings[num_key_bindings].mod;
+                key_bindings[i].callback = key_bindings[num_key_bindings].callback;
+                return;
+            }
+            else
+            {
+                key_bindings[i].callback = callback;
+                return;
+            }
+        }
+    }
+
+    if (callback == NULL)
+    {
+        return;
+    }
+
+    if (num_key_bindings < MAX_KEY_BINDINGS)
+    {
+        key_bindings[num_key_bindings].key = key;
+        key_bindings[num_key_bindings].mod = mod;
+        key_bindings[num_key_bindings].callback = callback;
+        num_key_bindings += 1;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void process_inputs_system (ecs_iter_t *it)
 {
     int key = GetKeyPressed ();
+    int mod = 0;
+    if (IsKeyDown (KEY_LEFT_SHIFT) || IsKeyDown (KEY_RIGHT_SHIFT))
+    {
+        mod |= 1;
+    }
+    if (IsKeyDown (KEY_LEFT_CONTROL) || IsKeyDown (KEY_RIGHT_CONTROL))
+    {
+        mod |= 2;
+    }
     while (key)
     {
-        switch (key)
+        for (int i = 0; i < num_key_bindings; i ++)
         {
-            case KEY_F1:
+            if ((key_bindings[i].key == key) && (key_bindings[i].mod == mod))
             {
-                toggle_fps_counter ();
-                break;
-            }
-            case KEY_F11:
-            {
-                toggle_fullscreen ();
-                break;
-            }
-
-            default:
-            {
-                printf ("Key %d\n", key);
+                key_bindings[i].callback ();
                 break;
             }
         }
@@ -110,7 +171,6 @@ void process_inputs (ecs_iter_t *it)
     int ch = GetCharPressed ();
     while (ch)
     {
-        printf ("Char %d\n", ch);
         ch = GetCharPressed ();
     }
 }
@@ -162,6 +222,28 @@ void init_phases (void)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+void update_sim_time_system (ecs_iter_t *it)
+{
+    sim_delta_time = it->delta_time * sim_speed;
+    sim_time += sim_delta_time;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void debug_sim_time_system (ecs_iter_t *it)
+{
+    char buffer[100];
+
+    snprintf (buffer, sizeof (buffer), "%5.1f (x%0.3f)", sim_time, sim_speed);
+    DrawTextEx (main_font, buffer, (Vector2) {4, 34}, 30, 0, (Color) {0, 0, 0, 255});
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 void init_world (void)
 {
     world = ecs_init ();
@@ -172,9 +254,12 @@ void init_world (void)
     init_phases ();
     init_components ();
 
-    ECS_SYSTEM (world, begin_drawing, PhaseBeginDrawing, );
-    ECS_SYSTEM (world, end_drawing, PhaseEndDrawing, );
-    ECS_SYSTEM (world, process_inputs, PhaseProcessInputs, );
+    ECS_SYSTEM (world, update_sim_time_system, EcsOnLoad, );
+    ECS_SYSTEM (world, debug_sim_time_system, PhaseDrawDebug, );
+
+    // ECS_SYSTEM (world, begin_drawing_system, PhaseBeginDrawing, );
+    // ECS_SYSTEM (world, end_drawing_system, PhaseEndDrawing, );
+    // ECS_SYSTEM (world, process_inputs_system, PhaseProcessInputs, );
 
     init_fps_counter ();
     init_trees ();
@@ -212,9 +297,24 @@ void deinit_world (void)
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+void set_speed_zero (void) { sim_speed = 0; }
+void set_speed_one (void) { sim_speed = 1; }
+void set_speed_two (void) { sim_speed = 2; }
+void set_speed_three (void) { sim_speed = 4; }
+void set_speed_four (void) { sim_speed = 8; }
+void set_speed_five (void) { sim_speed = 16; }
+void set_speed_six (void) { sim_speed = 32; }
+void set_speed_seven (void) { sim_speed = 0.125; }
+void set_speed_eight (void) { sim_speed = 0.25; }
+void set_speed_nine (void) { sim_speed = 0.5; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 int main (int argc, char **argv)
 {
-    SetTraceLogLevel (LOG_WARNING);
+    SetTraceLogLevel (LOG_DEBUG);
     SetConfigFlags (FLAG_MSAA_4X_HINT);
     InitWindow (1280, 720, "ijo");
     SetWindowState (
@@ -228,20 +328,37 @@ int main (int argc, char **argv)
 
     create_default_state ();
 
+    set_key_binding (KEY_F1, None, toggle_fps_counter);
+    set_key_binding (KEY_F11, None, toggle_fullscreen);
+    set_key_binding (KEY_ZERO, None, set_speed_zero);
+    set_key_binding (KEY_ONE, None, set_speed_one);
+    set_key_binding (KEY_TWO, None, set_speed_two);
+    set_key_binding (KEY_THREE, None, set_speed_three);
+    set_key_binding (KEY_FOUR, None, set_speed_four);
+    set_key_binding (KEY_FIVE, None, set_speed_five);
+    set_key_binding (KEY_SIX, None, set_speed_six);
+    set_key_binding (KEY_SEVEN, None, set_speed_seven);
+    set_key_binding (KEY_EIGHT, None, set_speed_eight);
+    set_key_binding (KEY_NINE, None, set_speed_nine);
+
     while (!WindowShouldClose ())
     {
-        if (IsWindowFocused ())
-        {
-            SetWindowState (FLAG_VSYNC_HINT);
-            SetTargetFPS (0);
-        }
-        else
-        {
-            ClearWindowState (FLAG_VSYNC_HINT);
-            SetTargetFPS (30);
-        }
+        // if (IsWindowFocused ())
+        // {
+            // SetWindowState (FLAG_VSYNC_HINT);
+            // SetTargetFPS (0);
+        // }
+        // else
+        // {
+            // ClearWindowState (FLAG_VSYNC_HINT);
+            // SetTargetFPS (30);
+        // }
 
+        process_inputs_system (NULL);
+        BeginDrawing ();
+        ClearBackground ((Color) {255,255,255,255});
         ecs_progress (world, 0);
+        EndDrawing ();
     }
 
     deinit_world ();
