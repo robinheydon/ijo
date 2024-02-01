@@ -15,6 +15,7 @@ void init_components (void)
     ECS_META_COMPONENT (world, Position);
     ECS_META_COMPONENT (world, Velocity);
     ECS_META_COMPONENT (world, Tree);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -15,7 +15,10 @@ ecs_world_t *world = NULL;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 ecs_entity_t PhaseProcessInputs = 0;
+ecs_entity_t PhaseBeforeUpdate = 0;
+ecs_entity_t PhasePreUpdate = 0;
 ecs_entity_t PhaseUpdate = 0;
+ecs_entity_t PhaseAfterUpdate = 0;
 ecs_entity_t PhaseBeginDrawing = 0;
 ecs_entity_t PhaseBegin3D = 0;
 ecs_entity_t PhaseDraw3D = 0;
@@ -66,25 +69,6 @@ void move_system (ecs_iter_t *it)
         p[i].x += v[i].dx * dt;
         p[i].y += v[i].dy * dt;
     }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-void begin_drawing_system (ecs_iter_t *it)
-{
-    BeginDrawing ();
-    ClearBackground ((Color) {255,255,255,255});
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-void end_drawing_system (ecs_iter_t *it)
-{
-    EndDrawing ();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +170,10 @@ void init_phases (void)
         ecs_entity_t *entity;
     } phases[] = {
         { "PhaseProcessInputs", &PhaseProcessInputs, },
+        { "PhaseBeforeUpdate", &PhaseBeforeUpdate, },
+        { "PhasePreUpdate", &PhasePreUpdate, },
         { "PhaseUpdate", &PhaseUpdate, },
+        { "PhaseAfterUpdate", &PhaseAfterUpdate, },
         { "PhaseBeginDrawing", &PhaseBeginDrawing, },
         { "PhaseBegin3D", &PhaseBegin3D, },
         { "PhaseDraw3D", &PhaseDraw3D, },
@@ -254,26 +241,22 @@ void init_world (void)
 {
     world = ecs_init ();
 
+    ecs_set_threads (world, 8);
+
     ecs_singleton_set (world, EcsRest, {0});
     ECS_IMPORT (world, FlecsMonitor);
 
     init_phases ();
     init_components ();
+    init_geocodes ();
 
     ECS_SYSTEM (world, update_sim_time_system, EcsOnLoad, );
     ECS_SYSTEM (world, debug_sim_time_system, PhaseDrawDebug, );
 
-    // ECS_SYSTEM (world, begin_drawing_system, PhaseBeginDrawing, );
-    // ECS_SYSTEM (world, end_drawing_system, PhaseEndDrawing, );
-    // ECS_SYSTEM (world, process_inputs_system, PhaseProcessInputs, );
+    ECS_SYSTEM (world, process_inputs_system, PhaseProcessInputs, );
 
     init_fps_counter ();
     init_trees ();
-
-    mk_tree (30, 50);
-    mk_tree (90, 30);
-    mk_tree (140, 60);
-    mk_tree (190, 40);
 
     ECS_SYSTEM (world, move_system, PhaseUpdate, Position, Velocity);
 }
@@ -320,7 +303,9 @@ void set_speed_nine (void) { sim_speed = 0.5; }
 
 int main (int argc, char **argv)
 {
-    SetTraceLogLevel (LOG_DEBUG);
+    srand (time (0));
+
+    SetTraceLogLevel (LOG_WARNING);
     SetConfigFlags (FLAG_MSAA_4X_HINT);
     InitWindow (1280, 720, "ijo");
     SetWindowState (
@@ -349,21 +334,12 @@ int main (int argc, char **argv)
 
     while (!WindowShouldClose ())
     {
-        // if (IsWindowFocused ())
-        // {
-            // SetWindowState (FLAG_VSYNC_HINT);
-            // SetTargetFPS (0);
-        // }
-        // else
-        // {
-            // ClearWindowState (FLAG_VSYNC_HINT);
-            // SetTargetFPS (30);
-        // }
-
-        process_inputs_system (NULL);
         BeginDrawing ();
         ClearBackground ((Color) {255,255,255,255});
+        double ecs_start_time = GetTime ();
         ecs_progress (world, 0);
+        double ecs_time = GetTime () - ecs_start_time;
+        printf ("%f : %f%%\n", ecs_time, 100 * ecs_time / 0.0166666);
         EndDrawing ();
     }
 
