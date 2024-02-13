@@ -41,6 +41,7 @@ RAYLIB_OBJS += _build/raylib/utils.o
 
 RAYLIB_CFLAGS += -DPLATFORM_DESKTOP
 RAYLIB_CFLAGS += -O2
+RAYLIB_CFLAGS += -Ilibs/raylib/src/external/glfw/include
 
 debug : $(DEBUG_EXE)
 release : $(RELEASE_EXE)

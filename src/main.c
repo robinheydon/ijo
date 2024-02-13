@@ -155,6 +155,7 @@ void process_inputs_system (ecs_iter_t *it)
     int ch = GetCharPressed ();
     while (ch)
     {
+        printf ("%08x\n", ch);
         ch = GetCharPressed ();
     }
 }
@@ -336,10 +337,10 @@ int main (int argc, char **argv)
     {
         BeginDrawing ();
         ClearBackground ((Color) {255,255,255,255});
-        double ecs_start_time = GetTime ();
+        // double ecs_start_time = GetTime ();
         ecs_progress (world, 0);
-        double ecs_time = GetTime () - ecs_start_time;
-        printf ("%f : %f%%\n", ecs_time, 100 * ecs_time / 0.0166666);
+        // double ecs_time = GetTime () - ecs_start_time;
+        // printf ("%f : %f%%\n", ecs_time, 100 * ecs_time / 0.0166666);
         EndDrawing ();
     }
 
